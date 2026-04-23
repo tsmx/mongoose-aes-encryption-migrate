@@ -11,6 +11,7 @@ const {
     getEncryptedMongooseModel,
 } = require('./helpers');
 const { mongooseFieldEncryptionToEncrypted } = require('../index');
+const { migrateFromMongooseFieldEncryption, decryptMfeField, deriveKey } = require('../lib/mongoose-field-encryption');
 
 const COLLECTION = 'users';
 
@@ -125,5 +126,53 @@ test('dryRun does not modify documents', async () => {
     const { client, collection } = await getNativeCollection(uri, COLLECTION);
     const doc = await collection.findOne({});
     expect(doc.__enc_name).toBe(true);
+    await client.close();
+});
+
+test('decryptMfeField throws on malformed value (missing colon separator)', () => {
+    const derivedKey = deriveKey(SOURCE_SECRET);
+    expect(() => decryptMfeField('notvalidformat', derivedKey)).toThrow(
+        'unexpected mongoose-field-encryption value format'
+    );
+});
+
+test('onProgress is called for each document including skipped', async () => {
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+    // Migrate so Alice and Bob have no __enc_name (skipped on next run)
+    await mongooseFieldEncryptionToEncrypted({ uri, collection: COLLECTION, fields: ['name'], secret: SOURCE_SECRET, key: TARGET_KEY });
+    // Insert a new unmigrated doc
+    await SourceModel.create({ name: 'Carol' });
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    let progressCount = 0;
+    await migrateFromMongooseFieldEncryption({
+        collection,
+        fields: ['name'],
+        secret: SOURCE_SECRET,
+        key: TARGET_KEY,
+        onProgress: () => { progressCount++; },
+        onError: async (_id, err) => { throw err; },
+    });
+    // Alice and Bob skipped, Carol migrated
+    expect(progressCount).toBe(3);
+    await client.close();
+});
+
+test('marker true but field value absent — field set to null in migrated doc', async () => {
+    // Insert a raw doc where __enc_name is true but 'name' is absent
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    await collection.insertOne({ __enc_name: true });
+
+    await mongooseFieldEncryptionToEncrypted({
+        uri,
+        collection: COLLECTION,
+        fields: ['name'],
+        secret: SOURCE_SECRET,
+        key: TARGET_KEY,
+    });
+
+    const doc = await collection.findOne({ __enc_name: { $exists: false } });
+    expect(doc.name).toBeNull();
+    expect(doc.__enc_name).toBeUndefined();
     await client.close();
 });

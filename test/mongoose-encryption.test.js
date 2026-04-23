@@ -12,6 +12,7 @@ const {
     getEncryptedMongooseModel,
 } = require('./helpers');
 const { mongooseEncryptionToEncrypted } = require('../index');
+const { migrateFromMongooseEncryption } = require('../lib/mongoose-encryption');
 
 const COLLECTION = 'users';
 
@@ -131,5 +132,77 @@ test('dryRun does not modify documents', async () => {
     const { client, collection } = await getNativeCollection(uri, COLLECTION);
     const doc = await collection.findOne({});
     expect(doc._ct).toBeDefined();
+    await client.close();
+});
+
+test('plaintextFields — field is restored as plaintext, not re-encrypted', async () => {
+    // Save a doc that has both 'name' (to re-encrypt) and 'role' (to restore as plaintext)
+    // We need a schema that encrypts both fields
+    const schema2 = new mongoose.Schema({ name: String, role: String }, { strict: false });
+    schema2.plugin(mongooseEncryption, {
+        encryptionKey: SOURCE_ENC_KEY,
+        signingKey: SOURCE_SIG_KEY,
+        encryptedFields: ['name', 'role'],
+    });
+    const MultiModel = sourceConn.model('multi_users', schema2, 'multi_users');
+    await MultiModel.create({ name: 'Alice', role: 'admin' });
+
+    await mongooseEncryptionToEncrypted({
+        uri,
+        collection: 'multi_users',
+        fields: ['name'],
+        plaintextFields: ['role'],
+        key: TARGET_KEY,
+        sourceKey: SOURCE_ENC_KEY,
+    });
+
+    const { client, collection } = await getNativeCollection(uri, 'multi_users');
+    const doc = await collection.findOne({});
+    // 'role' should be plaintext
+    expect(doc.role).toBe('admin');
+    // 'name' should be an AES ciphertext (pipe-delimited hex)
+    expect(typeof doc.name).toBe('string');
+    expect(doc.name).toMatch(/^[0-9a-f]+\|[0-9a-f]+\|[0-9a-f]+$/);
+    await collection.drop();
+    await client.close();
+});
+
+test('onProgress is called for each document including skipped', async () => {
+    // Insert 2 docs with _ct, 1 already migrated (no _ct)
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+    // Manually migrate one doc so it has no _ct
+    await mongooseEncryptionToEncrypted({ uri, collection: COLLECTION, fields: ['name'], key: TARGET_KEY, sourceKey: SOURCE_ENC_KEY, dryRun: false });
+    // Re-insert one unmigrated doc
+    await SourceModel.create({ name: 'Carol' });
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    let progressCount = 0;
+    await migrateFromMongooseEncryption({
+        collection,
+        fields: ['name'],
+        key: TARGET_KEY,
+        sourceKeyBase64: SOURCE_ENC_KEY,
+        onProgress: () => { progressCount++; },
+        onError: async (_id, err) => { throw err; },
+    });
+    // Alice and Bob are already migrated (skipped), Carol has _ct (migrated)
+    expect(progressCount).toBe(3);
+    await client.close();
+});
+
+test('wrong sourceKey length throws during migration', async () => {
+    await SourceModel.create({ name: 'Alice' });
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    // A base64 string that decodes to the wrong number of bytes
+    const badKey = Buffer.alloc(16, 0x01).toString('base64'); // 16 bytes, not 32
+    await expect(
+        migrateFromMongooseEncryption({
+            collection,
+            fields: ['name'],
+            key: TARGET_KEY,
+            sourceKeyBase64: badKey,
+            onError: async (_id, err) => { throw err; },
+        })
+    ).rejects.toThrow('32-byte');
     await client.close();
 });
