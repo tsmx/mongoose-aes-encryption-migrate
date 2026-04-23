@@ -1,0 +1,48 @@
+{
+    "name": "mongoose-aes-encryption-migrate",
+    "version": "1.0.0",
+    "description": "CLI migration tool to encrypt existing MongoDB collections for use with mongoose-aes-encryption",
+    "main": "index.js",
+    "bin": {
+        "mongoose-aes-migration": "bin/migrate.js"
+    },
+    "scripts": {
+        "test": "jest --testEnvironment node",
+        "test-coverage": "jest --testEnvironment node --coverage"
+    },
+    "keywords": [
+        "mongoose",
+        "mongodb",
+        "encryption",
+        "aes",
+        "migration",
+        "migrate"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "cli-progress": "^3.12.0",
+        "commander": "^12.1.0",
+        "inquirer": "^9.3.7",
+        "mongodb": "^6.12.0"
+    },
+    "peerDependencies": {
+        "mongoose-aes-encryption": ">=1.1.1",
+        "mongoose": ">=7.0.0"
+    },
+    "peerDependenciesMeta": {
+        "mongoose-aes-encryption": {
+            "optional": false
+        },
+        "mongoose": {
+            "optional": false
+        }
+    },
+    "devDependencies": {
+        "mongoose-aes-encryption": "file:../mongoose-aes-encryption",
+        "jest": "^29.7.0"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}
