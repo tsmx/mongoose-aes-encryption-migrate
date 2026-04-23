@@ -1,8 +1,8 @@
 # mongoose-aes-encryption-migrate
 
-CLI migration tool for [mongoose-aes-encryption](https://github.com/tsmx/mongoose-aes-encryption).
+CLI migration tool for [mongoose-aes-encryption](https://github.com/tsmx/mongoose-aes-encryption) for existing databases in plaintext or using other Mongoose encryption plugins.
 
-Supports migration from the following sources:
+Supports migration for the following paths:
 
 | Mode | Source plugin | Monthly downloads |
 |---|---|---|

@@ -6,6 +6,10 @@
     "bin": {
         "mongoose-aes-migration": "bin/migrate.js"
     },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tsmx/mongoose-aes-encryption-migrate.git"
+    },
     "scripts": {
         "test": "jest --testEnvironment node",
         "test-coverage": "jest --testEnvironment node --coverage"
@@ -18,7 +22,7 @@
         "migration",
         "migrate"
     ],
-    "author": "",
+    "author": "tsmx <dev@tsmx.net>",
     "license": "MIT",
     "dependencies": {
         "cli-progress": "^3.12.0",
