@@ -176,3 +176,74 @@ test('marker true but field value absent — field set to null in migrated doc',
     expect(doc.__enc_name).toBeUndefined();
     await client.close();
 });
+
+test('non-string field stored in __enc_<field>_d is migrated correctly', async () => {
+    // Use a schema with a Number field so mongoose-field-encryption uses the _d path
+    const schema2 = new mongoose.Schema({ score: Number }, { strict: false });
+    schema2.plugin(fieldEncryption, { fields: ['score'], secret: SOURCE_SECRET });
+    const NumModel = sourceConn.model('num_users', schema2, 'num_users');
+    await NumModel.create({ score: 42 });
+
+    await mongooseFieldEncryptionToEncrypted({
+        uri,
+        collection: 'num_users',
+        fields: ['score'],
+        secret: SOURCE_SECRET,
+        key: TARGET_KEY,
+    });
+
+    const { client, collection } = await getNativeCollection(uri, 'num_users');
+    const doc = await collection.findOne({});
+    // __enc_score and __enc_score_d should be removed
+    expect(doc.__enc_score).toBeUndefined();
+    expect(doc.__enc_score_d).toBeUndefined();
+    // score should now be an AES ciphertext
+    expect(typeof doc.score).toBe('string');
+    expect(doc.score).toMatch(/^[0-9a-f]+\|[0-9a-f]+\|[0-9a-f]+$/);
+    await collection.drop();
+    await client.close();
+});
+
+test('onError returning skip counts error and continues', async () => {
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    const mockCollection = {
+        find: (...args) => collection.find(...args),
+        updateOne: jest.fn().mockRejectedValueOnce(new Error('simulated write failure')),
+    };
+
+    const result = await migrateFromMongooseFieldEncryption({
+        collection: mockCollection,
+        fields: ['name'],
+        secret: SOURCE_SECRET,
+        key: TARGET_KEY,
+        onError: async () => 'skip',
+    });
+
+    // One error (skipped), one migrated successfully
+    expect(result.errors).toBe(1);
+    expect(result.migrated).toBe(1);
+    await client.close();
+});
+
+test('onError returning abort rethrows and stops migration', async () => {
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    const mockCollection = {
+        find: (...args) => collection.find(...args),
+        updateOne: jest.fn().mockRejectedValueOnce(new Error('simulated write failure')),
+    };
+
+    await expect(
+        migrateFromMongooseFieldEncryption({
+            collection: mockCollection,
+            fields: ['name'],
+            secret: SOURCE_SECRET,
+            key: TARGET_KEY,
+            onError: async () => 'abort',
+        })
+    ).rejects.toThrow('simulated write failure');
+    await client.close();
+});

@@ -206,3 +206,74 @@ test('wrong sourceKey length throws during migration', async () => {
     ).rejects.toThrow('32-byte');
     await client.close();
 });
+
+test('null value inside _ct is set to null in migrated doc', async () => {
+    // mongoose-encryption stores null field values inside _ct as JSON null
+    const schema2 = new mongoose.Schema({ name: String }, { strict: false });
+    schema2.plugin(mongooseEncryption, {
+        encryptionKey: SOURCE_ENC_KEY,
+        signingKey: SOURCE_SIG_KEY,
+        encryptedFields: ['name'],
+    });
+    const NullModel = sourceConn.model('null_users', schema2, 'null_users');
+    await NullModel.create({ name: null });
+
+    await mongooseEncryptionToEncrypted({
+        uri,
+        collection: 'null_users',
+        fields: ['name'],
+        key: TARGET_KEY,
+        sourceKey: SOURCE_ENC_KEY,
+    });
+
+    const { client, collection } = await getNativeCollection(uri, 'null_users');
+    const doc = await collection.findOne({});
+    expect(doc.name).toBeNull();
+    expect(doc._ct).toBeUndefined();
+    await collection.drop();
+    await client.close();
+});
+
+test('onError returning skip counts error and continues', async () => {
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    const mockCollection = {
+        find: (...args) => collection.find(...args),
+        updateOne: jest.fn().mockRejectedValueOnce(new Error('simulated write failure')),
+    };
+
+    const result = await migrateFromMongooseEncryption({
+        collection: mockCollection,
+        fields: ['name'],
+        key: TARGET_KEY,
+        sourceKeyBase64: SOURCE_ENC_KEY,
+        onError: async () => 'skip',
+    });
+
+    // One error (skipped), one migrated successfully
+    expect(result.errors).toBe(1);
+    expect(result.migrated).toBe(1);
+    await client.close();
+});
+
+test('onError returning abort rethrows and stops migration', async () => {
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    const mockCollection = {
+        find: (...args) => collection.find(...args),
+        updateOne: jest.fn().mockRejectedValueOnce(new Error('simulated write failure')),
+    };
+
+    await expect(
+        migrateFromMongooseEncryption({
+            collection: mockCollection,
+            fields: ['name'],
+            key: TARGET_KEY,
+            sourceKeyBase64: SOURCE_ENC_KEY,
+            onError: async () => 'abort',
+        })
+    ).rejects.toThrow('simulated write failure');
+    await client.close();
+});

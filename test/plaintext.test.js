@@ -9,6 +9,7 @@ const {
     getEncryptedMongooseModel,
 } = require('./helpers');
 const { plaintextToEncrypted } = require('../index');
+const { migratePlaintext } = require('../lib/plaintext');
 
 const COLLECTION = 'users';
 
@@ -79,4 +80,46 @@ test('handles documents with null field gracefully', async () => {
     // null is skipped (not encrypted), Bob is migrated
     expect(result.errors).toBe(0);
     expect(result.migrated + result.skipped).toBe(2);
+});
+
+test('onError returning skip counts error and continues', async () => {
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    const mockCollection = {
+        find: (...args) => collection.find(...args),
+        updateOne: jest.fn().mockRejectedValueOnce(new Error('simulated write failure')),
+    };
+
+    const result = await migratePlaintext({
+        collection: mockCollection,
+        fields: ['name'],
+        key: TARGET_KEY,
+        onError: async () => 'skip',
+    });
+
+    // One error (skipped), one migrated successfully
+    expect(result.errors).toBe(1);
+    expect(result.migrated).toBe(1);
+    await client.close();
+});
+
+test('onError returning abort rethrows and stops migration', async () => {
+    await SourceModel.create([{ name: 'Alice' }, { name: 'Bob' }]);
+
+    const { client, collection } = await getNativeCollection(uri, COLLECTION);
+    const mockCollection = {
+        find: (...args) => collection.find(...args),
+        updateOne: jest.fn().mockRejectedValueOnce(new Error('simulated write failure')),
+    };
+
+    await expect(
+        migratePlaintext({
+            collection: mockCollection,
+            fields: ['name'],
+            key: TARGET_KEY,
+            onError: async () => 'abort',
+        })
+    ).rejects.toThrow('simulated write failure');
+    await client.close();
 });
