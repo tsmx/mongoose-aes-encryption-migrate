@@ -25,7 +25,7 @@ Always pass `--testEnvironment node` when invoking Jest directly.
 
 ```
 index.js           ← programmatic API ("main")
-bin/migrate.js     ← CLI binary (registered as "mongoose-aes-migration")
+bin/migrate.js     ← CLI binary (registered as "mongoose-aes-encryption-migrate")
 lib/
   detect.js                          ← isAlreadyEncrypted() heuristic
   mongo.js                           ← connect/count/sample via native mongodb driver
@@ -35,7 +35,7 @@ lib/
 ```
 
 - Programmatic API exports: `plaintextToEncrypted`, `mongooseEncryptionToEncrypted`, `mongooseFieldEncryptionToEncrypted` — all return `Promise<{ migrated, skipped, errors }>`.
-- CLI binary name is `mongoose-aes-migration`, not `mongoose-aes-encryption-migrate`.
+- CLI binary name is `mongoose-aes-encryption-migrate`, matching the package name. Users can invoke it with `npx mongoose-aes-encryption-migrate [options]`.
 
 ## Critical quirks
 

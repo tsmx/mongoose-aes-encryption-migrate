@@ -4,7 +4,7 @@
     "description": "CLI migration tool to encrypt existing MongoDB collections for use with mongoose-aes-encryption",
     "main": "index.js",
     "bin": {
-        "mongoose-aes-migration": "bin/migrate.js"
+        "mongoose-aes-encryption-migrate": "bin/migrate.js"
     },
     "repository": {
         "type": "git",
