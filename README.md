@@ -4,11 +4,11 @@ CLI migration tool for [mongoose-aes-encryption](https://github.com/tsmx/mongoos
 
 Supports migration for the following paths:
 
-| Mode | Source plugin | Monthly downloads |
+| Mode | Source plugin | Source encryption |
 |---|---|---|
-| `plaintext` | No encryption — plain text fields | — |
-| `mongoose-encryption` | [mongoose-encryption](https://github.com/joegoldbeck/mongoose-encryption) | ~35,000 |
-| `mongoose-field-encryption` | [mongoose-field-encryption](https://github.com/wheresvic/mongoose-field-encryption) | ~73,000 |
+| `plaintext` | No encryption — plain text fields | none |
+| `mongoose-encryption` | [mongoose-encryption](https://github.com/joegoldbeck/mongoose-encryption) | AES-CBC |
+| `mongoose-field-encryption` | [mongoose-field-encryption](https://github.com/wheresvic/mongoose-field-encryption) | AES-CBC |
 
 > **Always back up your database before running a migration.**
 
