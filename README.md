@@ -18,8 +18,6 @@ Supports migration for the following paths:
 
 ```bash
 npm install -g mongoose-aes-encryption-migrate
-# peer dependencies
-npm install mongoose-aes-encryption mongoose
 ```
 
 Or use without installing via `npx`:
