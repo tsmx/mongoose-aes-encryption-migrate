@@ -33,7 +33,7 @@ function printSummary(result, dryRun) {
 // ─── CLI definition ─────────────────────────────────────────────────────────
 
 program
-    .name('mongoose-aes-migration')
+    .name('mongoose-aes-encryption-migrate')
     .description('Migrate existing MongoDB collections for use with mongoose-aes-encryption')
     .requiredOption('--uri <uri>', 'MongoDB connection string including database name (e.g. mongodb://localhost:27017/mydb)')
     .requiredOption('--collection <name>', 'Collection to migrate')

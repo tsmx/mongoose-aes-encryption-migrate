@@ -37,7 +37,7 @@ npx mongoose-aes-encryption-migrate --help
 Use this when you have added `encrypted: true` to fields in an existing Mongoose schema and need to encrypt all existing documents that still hold plain-text values.
 
 ```bash
-mongoose-aes-migration \
+mongoose-aes-encryption-migrate \
   --uri         mongodb://localhost:27017/mydb \
   --collection  users \
   --mode        plaintext \
@@ -54,7 +54,7 @@ The tool is **idempotent** — documents whose fields are already encrypted are 
 Use this when migrating from [mongoose-encryption](https://github.com/joegoldbeck/mongoose-encryption), which stores all encrypted fields bundled together in a single `_ct` Binary field per document.
 
 ```bash
-mongoose-aes-migration \
+mongoose-aes-encryption-migrate \
   --uri           mongodb://localhost:27017/mydb \
   --collection    users \
   --mode          mongoose-encryption \
@@ -80,7 +80,7 @@ After migration, `_ct` and `_ac` are removed from every document.
 Use this when migrating from [mongoose-field-encryption](https://github.com/wheresvic/mongoose-field-encryption), which stores each field as a per-field AES-256-CBC string in the format `<salt-hex>:<ciphertext-hex>` alongside `__enc_<field>` boolean marker fields.
 
 ```bash
-mongoose-aes-migration \
+mongoose-aes-encryption-migrate \
   --uri         mongodb://localhost:27017/mydb \
   --collection  users \
   --mode        mongoose-field-encryption \
@@ -118,7 +118,7 @@ Documents where the `__enc_<field>` marker is `false` or absent are skipped (fie
 Add `--dry-run` to any command to see what would happen without touching the database:
 
 ```bash
-mongoose-aes-migration \
+mongoose-aes-encryption-migrate \
   --uri mongodb://localhost:27017/mydb \
   --collection users \
   --mode plaintext \
