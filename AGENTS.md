@@ -39,7 +39,6 @@ lib/
 
 ## Critical quirks
 
-- **Local peer dep.** `mongoose-aes-encryption` is resolved from `file:../mongoose-aes-encryption` (a sibling directory). `npm install` will fail in a fresh checkout unless that sibling package exists at that relative path.
 - **No tests exist yet.** `npm test` exits 0 but runs nothing. New tests go in `test/` or root with `.test.js` suffix.
 - **Native `mongodb` driver, not Mongoose.** `lib/mongo.js` uses the MongoDB native driver directly. Mongoose is only a peer dep for the consumer app.
 - **`--fields` CLI flag is comma-separated; programmatic API takes `string[]`.** Don't pass a comma string to the API.
