@@ -1,3 +1,9 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+![npm version](https://img.shields.io/npm/v/mongoose-aes-encryption-migrate)
+![node version](https://img.shields.io/node/v/mongoose-aes-encryption-migrate)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/tsmx/mongoose-aes-encryption-migrate/git-build.yml?branch=master)](https://github.com/tsmx/mongoose-aes-encryption-migrate/actions/workflows/git-build.yml)
+[![Coverage Status](https://coveralls.io/repos/github/tsmx/mongoose-aes-encryption-migrate/badge.svg?branch=master)](https://coveralls.io/github/tsmx/mongoose-aes-encryption-migrate?branch=master)
+
 # mongoose-aes-encryption-migrate
 
 CLI migration tool for [mongoose-aes-encryption](https://github.com/tsmx/mongoose-aes-encryption) for existing databases in plaintext or using other Mongoose encryption plugins.
@@ -109,6 +115,8 @@ Documents where the `__enc_<field>` marker is `false` or absent are skipped (fie
 | `--batch-size` | no | `100` | Number of documents to process per batch |
 | `--dry-run` | no | `false` | Probe and report without writing any changes |
 
+> When running without `--dry-run`, the tool will prompt for confirmation before writing any changes. Answer `y` to proceed. Default answer is `n` (abort).
+
 ---
 
 ## Dry-run mode
@@ -166,7 +174,7 @@ const result = await plaintextToEncrypted({
 // result: { migrated: 998, skipped: 2, errors: 0 }
 
 // Mode 2 — mongoose-encryption
-const result = await mongooseEncryptionToEncrypted({
+const result2 = await mongooseEncryptionToEncrypted({
     uri:             'mongodb://localhost:27017/mydb',
     collection:      'users',
     fields:          ['name', 'email'],
@@ -177,7 +185,7 @@ const result = await mongooseEncryptionToEncrypted({
 });
 
 // Mode 3 — mongoose-field-encryption
-const result = await mongooseFieldEncryptionToEncrypted({
+const result3 = await mongooseFieldEncryptionToEncrypted({
     uri:        'mongodb://localhost:27017/mydb',
     collection: 'users',
     fields:     ['name', 'email', 'salary'],
@@ -226,6 +234,8 @@ The migration tool:
 3. Decrypts each field value (or `__enc_<field>_d` for non-string types)
 4. Re-encrypts with `mongoose-aes-encryption`'s wire format
 5. Writes `$set` of new ciphertext values and `$unset` of all `__enc_*` marker and data fields
+
+**Note on non-string field types:** `mongoose-field-encryption` stores non-string values (numbers, booleans, dates) as `JSON.stringify`'d strings in a separate `__enc_<field>_d` field. After migration, these values are stored as encrypted strings. If your Mongoose schema defines those fields with a non-string type (e.g. `Number`, `Boolean`, `Date`), Mongoose will automatically cast the decrypted string back to the correct type on read. If you access the collection via the raw MongoDB driver without Mongoose, you will need to cast the values manually after decryption.
 
 ---
 

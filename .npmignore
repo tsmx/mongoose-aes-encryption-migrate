@@ -1,5 +1,7 @@
 AGENTS.md
 coverage/
 scripts/
+test/
+**/*.test.js
 *.log
 .env

@@ -1,6 +1,6 @@
 'use strict';
 
-const { connect, countDocuments, sampleDocument } = require('./lib/mongo');
+const { connect, sampleDocument } = require('./lib/mongo');
 const { migratePlaintext, preflight: plaintextPreflight } = require('./lib/plaintext');
 const { migrateFromMongooseEncryption, preflight: mePreflight } = require('./lib/mongoose-encryption');
 const { migrateFromMongooseFieldEncryption, preflight: mfePreflight } = require('./lib/mongoose-field-encryption');
