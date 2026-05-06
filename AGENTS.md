@@ -1,8 +1,57 @@
 # AGENTS.md
 
+**Updated:** 2026-05-06 | **Commit:** 751e83e | **Branch:** master
+
 ## Overview
 
 Plain CommonJS JavaScript Node.js library + CLI. No TypeScript, no build step. Migrates MongoDB collections to `mongoose-aes-encryption` format from three source modes: plaintext, `mongoose-encryption`, and `mongoose-field-encryption`.
+
+## Structure
+
+```
+mongoose-aes-encryption-migrate/
+├── index.js           ← programmatic API entry point
+├── bin/migrate.js     ← CLI entry point (commander + inquirer)
+├── lib/               ← migration logic (5 modules)
+├── test/              ← Jest tests (7 files, 58 tests)
+└── scripts/           ← local dev helpers (not published)
+```
+
+## Where to Look
+
+| Task | Location |
+|------|----------|
+| Add/change CLI flag | `bin/migrate.js` (commander option + pass-through to index.js) |
+| Add/change migration logic | `lib/plaintext.js`, `lib/mongoose-encryption.js`, or `lib/mongoose-field-encryption.js` |
+| Change encryption detection | `lib/detect.js` → `isAlreadyEncrypted()` |
+| Change MongoDB connection | `lib/mongo.js` → `connect()` |
+| Add programmatic API function | `index.js` (add fn + export) |
+| Shared test setup/keys | `test/helpers.js` |
+| Local DB seeding | `scripts/seed.js` |
+
+## Code Map
+
+| Symbol | File | Role |
+|--------|------|------|
+| `plaintextToEncrypted` | `index.js` | API: plaintext → encrypted |
+| `mongooseEncryptionToEncrypted` | `index.js` | API: mongoose-encryption → encrypted |
+| `mongooseFieldEncryptionToEncrypted` | `index.js` | API: mongoose-field-encryption → encrypted |
+| `isAlreadyEncrypted(value, key)` | `lib/detect.js` | Skip-check heuristic (decrypt probe) |
+| `connect(uri, collectionName)` | `lib/mongo.js` | Native driver connect → `{ client, collection }` |
+| `sampleDocument(collection)` | `lib/mongo.js` | First-doc sample for preflight |
+| `migratePlaintext` | `lib/plaintext.js` | Core batch loop for plaintext mode |
+| `migrateFromMongooseEncryption` | `lib/mongoose-encryption.js` | Decrypt `_ct`, re-encrypt per-field |
+| `migrateFromMongooseFieldEncryption` | `lib/mongoose-field-encryption.js` | Decrypt `<salt>:<ct>` fields, re-encrypt |
+
+## Key Dependencies
+
+| Package | Role |
+|---------|------|
+| `mongodb` ^6 | Native driver (NOT Mongoose) for all DB ops |
+| `mongoose-aes-encryption` | Target encrypt/decrypt wire format |
+| `commander` | CLI option parsing |
+| `inquirer` | Interactive confirmation + error prompts |
+| `cli-progress` | Progress bar during migration |
 
 ## Commands
 
@@ -23,33 +72,16 @@ Always pass `--testEnvironment node` when invoking Jest directly.
 
 ## Package structure
 
-```
-index.js           ← programmatic API ("main")
-bin/migrate.js     ← CLI binary ("mongoose-aes-encryption-migrate")
-lib/
-  detect.js                        ← isAlreadyEncrypted() heuristic
-  mongo.js                         ← connect/count/sample via native mongodb driver
-  plaintext.js
-  mongoose-encryption.js
-  mongoose-field-encryption.js
-test/
-  helpers.js                       ← shared startDb/stopDb (mongodb-memory-server), keys, model factories
-  *.test.js                        ← 58 tests across 6 suites, all using in-memory MongoDB
-scripts/
-  seed.js                          ← populates local encryptiontest DB with 1000-doc test collections
-  verify.js                        ← reads migrated collections via mongoose-aes-encryption
-  migrate-local.sh                 ← generates a key with openssl and runs npx migration against local DB
-```
-
 - Programmatic API exports: `plaintextToEncrypted`, `mongooseEncryptionToEncrypted`, `mongooseFieldEncryptionToEncrypted` — all return `Promise<{ migrated, skipped, errors }>`.
 - CLI binary name matches the package name. Users invoke it with `npx mongoose-aes-encryption-migrate [options]`.
 - `scripts/` is excluded from npm publish (`.npmignore`) but tracked in git.
+- Published files: `index.js`, `bin/`, `lib/` only (`test/`, `scripts/` excluded).
 
 ## Testing
 
 - Tests use `mongodb-memory-server` — no real MongoDB needed.
 - Shared setup lives in `test/helpers.js`: `startDb()`, `stopDb()`, `getNativeCollection()`, `getEncryptedMongooseModel()`, and hardcoded test keys (`TARGET_KEY`, `SOURCE_ENC_KEY`, `SOURCE_SIG_KEY`, `SOURCE_SECRET`).
-- CI runs Node 18, 20, 22 in parallel (`.github/workflows/git-build.yml`) and reports coverage to Coveralls.
+- CI runs Node 20, 22, 24 in parallel (`.github/workflows/git-build.yml`) and reports coverage to Coveralls.
 
 ## Critical quirks
 
